@@ -8,12 +8,27 @@ const supabaseClient = supabase.createClient(
 
 const chatBox = document.getElementById("chat-box");
 
-async function loadMessages() {
+// tampilkan 1 pesan
+function addMessage(text) {
+  const div = document.createElement("div");
+  div.className = "message";
+  div.innerText = text;
 
-  const { data } = await supabaseClient
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// load semua pesan
+async function loadMessages() {
+  const { data, error } = await supabaseClient
     .from("messages")
     .select("*")
     .order("id", { ascending: true });
+
+  if (error) {
+    console.log(error);
+    return;
+  }
 
   chatBox.innerHTML = "";
 
@@ -22,33 +37,24 @@ async function loadMessages() {
   });
 }
 
-function addMessage(text) {
-
-  const div = document.createElement("div");
-
-  div.className = "message";
-  div.innerText = text;
-
-  chatBox.appendChild(div);
-
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
+// kirim pesan
 async function sendMessage() {
-
   const input = document.getElementById("message");
 
-  if (input.value === "") return;
+  if (input.value.trim() === "") return;
+
+  const text = input.value;
+
+  input.value = "";
 
   await supabaseClient
     .from("messages")
     .insert({
-      text: input.value
+      text: text
     });
-
-  input.value = "";
 }
 
+// realtime listener
 supabaseClient
   .channel("messages-channel")
   .on(
@@ -59,9 +65,11 @@ supabaseClient
       table: "messages"
     },
     payload => {
-      addMessage(payload.new.text);
+      // reload semua pesan biar konsisten
+      loadMessages();
     }
   )
   .subscribe();
 
+// pertama kali load
 loadMessages();
